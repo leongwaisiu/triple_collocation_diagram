@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Triple Collocation diagram (Siu et al., submitted) implementation.
 
@@ -7,10 +6,11 @@ Taylor diagram.  The original code is placed in
 https://gist.github.com/ycopin/3342888.
 
 If you use it for your research, please cite the following publication:
-    Siu et al., 2023: Summarizing multiple aspects of triple collocation 
+    Siu et al., 2024: Summarizing multiple aspects of triple collocation 
         analysis in a single diagram, submitted.
 
 """
+#!/usr/bin/env python
 # Python library imports
 # Third party imports
 import matplotlib.colors as colors
@@ -24,11 +24,12 @@ from mpl_toolkits.axisartist.grid_finder import DictFormatter, FixedLocator, Max
 
 
 class TripleCollocationDiagram:
-    """Triple collocation diagram.
+    """
+    Triple collocation diagram.
+    
     Plot standard deviation and correlation of three datasets
     in a single-quadrant polar plot, with r=std and theta=arccos(correlation).
     """
-
     def __init__(
         self,
         errstd,
@@ -146,9 +147,10 @@ class TripleCollocationDiagram:
         ax.axis["top"].label.set_text("Correlation coefficient")
         # Adjust 'X-axis'
         ax.axis["left"].set_axis_direction("bottom")
-        ax.axis["left"].label.set_text("Standard deviation")
+        ax.axis["left"].label.set_text("Signal standard deviation")
         # Adjust 'Y-axis'
         ax.axis["right"].set_axis_direction("top")
+        # ax.axis["right"].label.set_text("Error standard deviation")
         ax.axis["right"].toggle(ticklabels=True)
         ax.axis["right"].major_ticklabels.set_axis_direction(
             "bottom" if extend else "left"
@@ -221,7 +223,7 @@ class TripleCollocationDiagram:
         return l
 
     def add_sigstd(self, ind, label=None, normal=False, *args, **kwargs):
-        """Add error standard deviation to TC diagram.
+        """Add signal standard deviation to TC diagram.
         *args* and *kwargs* are directly propagated to the
         `Figure.plot` command.
         """
@@ -248,7 +250,6 @@ class TripleCollocationDiagram:
         if label is not None:
             self.samplePoints.append(l)
         return l
-
 
     def add_grid(self, *args, **kwargs):
         """Add a grid to the Taylor diagram.
@@ -308,7 +309,6 @@ class TripleCollocationDiagram:
                 contours = self.ax.contour(ts, rs, rs, [errstd], **kwargs)
             else:
                 contours = self.ax.contour(ts, rs, rs, levels, **kwargs)
-            return contours
         elif self.horizon == 'totstd':
             rms = np.sqrt(
                 self.totstd[ind] ** 2 + rs**2 - 2 * self.totstd[ind] * rs * np.cos(ts)
@@ -334,7 +334,6 @@ class TripleCollocationDiagram:
             )
         return rline
 
-
     def add_skillscore_contours(self, levels=None, **kwargs):
         """Add skill score contours, defined by *levels*.
         *kwargs* is directly propagated to the
@@ -345,14 +344,23 @@ class TripleCollocationDiagram:
         )
         # Compute skill score grid
         corr = np.cos(ts)
-        # From equation (5) in Taylor (2001)
-        ss = 4 / (rs + 1 / rs) ** 2 * ((1 + corr) / 2) ** 4
-        # ss = 4/(rs+1/rs)**2 * ((1+corr)/2)
+        xs = rs*np.cos(ts)
+        ys = rs*np.sin(ts)
+        zs = np.sqrt(xs**2+ys**2)
+        ss = (1 - ys**2/(zs**2+xs**2))*corr
         if levels is None:
             levels = np.linspace(0.1, 0.9, 9)
         contours = self.ax.contour(ts, rs, ss, levels, **kwargs)
         return contours
 
+    def calc_skillscore(self, ind):
+        """Compute skill score."""
+        xs = self.sigstd[ind]
+        ys = self.errstd[ind]
+        zs = self.totstd[ind]
+        corr = self.corrcoef[ind]
+        ss = (1 - ys**2/(zs**2+xs**2))*corr
+        return ss
 
 def test1():
     """Plot a base Triple Collocation diagram."""
@@ -432,7 +440,7 @@ def test1():
                 mec=cmaps[i], 
                 ms=6)
             # Add line from origin to total standard deviation
-            tot_side = dia.add_totstd_side(
+            dia.add_totstd_side(
                 i,
                 linestyle="solid",
                 linewidth=0.8,
@@ -444,6 +452,9 @@ def test1():
         dia._ax.set_title(titles[rect])
         dia._ax.axis[:].major_ticklabels.set_fontsize(8)
         dia._ax.axis[:].label.set_fontsize(8)
+        dia._ax.text(-0.12,0.5,"Error standard deviation",
+                     transform=dia.ax.transAxes, rotation="vertical",va="center",
+                     fontsize=8)
         # Add grid
         dia.add_grid(axis="both", lw=0.5)
 
@@ -473,7 +484,6 @@ def test1():
     plt.savefig(outfile)
     plt.show()
     return dia
-
 
 def test2():
     """Plot a base Triple Collocation diagram."""
@@ -557,6 +567,9 @@ def test2():
         dia._ax.set_title(titles[rect])
         dia._ax.axis[:].major_ticklabels.set_fontsize(8)
         dia._ax.axis[:].label.set_fontsize(8)
+        dia._ax.text(-0.12,0.5,"Error standard deviation",
+                     transform=dia.ax.transAxes, rotation="vertical",va="center",
+                     fontsize=8)
         # Add grid
         dia.add_grid(axis="both", lw=0.5)
 
@@ -599,17 +612,15 @@ def test2():
     plt.show()
     return dia
 
-
 def test3():
-    """Plot a Triple Collocation diagram with skill score contours."""
+    """Plot a base Triple Collocation diagram."""
     # Define subplots
     rects = [111]
     # System, error, and signal std
     errstds = {rects[0]: [0.06373, 0.02726, 0.05112, 0.0441, 0.02871, 0.04979]}
     corrcoefs = {rects[0]: [0.7963, 0.9256, 0.8577, 0.8356, 0.9015, 0.8670]}
-
     # Plot specifics
-    sranges = {rects[0]: (0.0, 1.4)}
+    sranges = {rects[0]: (0.0, 0.125)}
     labels = {
         rects[0]: [
             "RSP (before)",
@@ -622,7 +633,7 @@ def test3():
     }
     titles = {rects[0]: ""}
     # gl2 = MaxNLocator(steps=[1,4,10])
-    gl2 = MaxNLocator(steps=[5])
+    gl2 = MaxNLocator(steps=[3])
     rlocs = np.array([0.0, 0.2, 0.4, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.99, 1.0])
     # Colormap (see http://www.scipy.org/Cookbook/Matplotlib/Show_colormaps)
     cmaps = ["tab:blue", "tab:red", "tab:orange", "tab:blue", "tab:red", "tab:orange"]
@@ -642,53 +653,63 @@ def test3():
             corrcoefs[rect],
             fig=fig,
             rect=rect,
-            normal=True,
             rlocs=rlocs,
             srange=sranges[rect],
             sgrid_locator=gl2,
-            horizon='totstd',
+            horizon='sigstd',
         )
         for i, _ in enumerate(dia.totstd):
             # Add total standard deviation point
             dia.add_totstd(
-                i,
-                marker=markers[i],
-                ls="",
-                normal=True,
-                mfc=cmaps[i],
-                mec=cmaps[i],
-                ms=5,
-            )
-            # Add error standard deviation point
-            dia.add_errstd(
-                i,
-                marker=markers[i],
-                ls="",
-                normal=True,
+                i, 
+                marker=markers[i], 
+                ls="", 
                 mfc="none",
-                mec=cmaps[i],
-                ms=5,
+                # mfc=cmaps[i], 
+                mec=cmaps[i], 
+                ms=6,
                 label=labels[rect][i],
-            )
+                )
+            # ss = dia.calc_skillscore(i)
 
         # Add skill score
         ss_conts = dia.add_skillscore_contours(
-            levels=np.linspace(0.1, 0.9, 9),
+            levels=[0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99],
             linestyles="solid",
             linewidths=0.8,
             colors="tab:brown",
         )
         # Add skill score label
-        dia.ax.clabel(ss_conts, inline=True, fontsize=6, fmt="%.1f")
+        dia.ax.clabel(ss_conts, inline=True, fontsize=6, fmt="%.2f")
 
         # Tricky: ax is the polar ax (used for plots), _ax is the
         # container (used for layout)
         dia._ax.set_title(titles[rect])
         dia._ax.axis[:].major_ticklabels.set_fontsize(8)
         dia._ax.axis[:].label.set_fontsize(8)
-        dia._ax.axis["left"].label.set_text("Standard deviation (normalized)")
+        dia._ax.text(-0.12,0.5,"Error standard deviation",
+                     transform=dia.ax.transAxes, rotation="vertical",va="center",
+                     fontsize=8)
         # Add grid
         dia.add_grid(axis="both", lw=0.5)
+
+        # Set up arrows
+        arrows = [
+            mpatches.FancyArrowPatch(
+                (np.arccos(dia.corrcoef[n]), dia.totstd[n]),
+                (np.arccos(dia.corrcoef[n + 3]), dia.totstd[n + 3]),
+                facecolor=cmaps[n],
+                edgecolor=cmaps[n],
+                shrinkA=2.5,
+                shrinkB=2.5,
+                arrowstyle="->,head_length=2,head_width=2",
+                mutation_scale=1,
+            )
+            for n in np.arange(3)
+        ]
+        # Add arrows
+        for arrow in arrows:
+            dia.ax.add_patch(arrow)
 
     # Add a figure legend and title. For loc option, place x,y tuple inside [ ].
     # Can also use special options here:
@@ -705,11 +726,10 @@ def test3():
         frameon=False,
     )
 
-    # Default directory is to your home directory.
+    # Default path is to your home directory.
     outfile = "fig_tcd3.eps"
     plt.savefig(outfile)
     plt.show()
-
     return dia
 
 
