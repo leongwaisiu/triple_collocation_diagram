@@ -1,17 +1,19 @@
 """
-Triple Collocation diagram (Siu et al., submitted) implementation.
+Triple Collocation diagram (Siu et al., 2024) implementation.
 
 This is a heavy modification of Yannick Copin's work for implementing
-Taylor diagram.  The original code is placed in 
+Taylor diagram.  The original code is placed in
 https://gist.github.com/ycopin/3342888.
 
 If you use it for your research, please cite the following publication:
-    Siu et al., 2024: Summarizing multiple aspects of triple collocation 
-        analysis in a single diagram, submitted.
+    Siu et al. (2024). Summarizing multiple aspects of triple collocation
+        analysis in a single diagram. Frontiers in Remote Sensing, 5,
+        1395442, doi: 10.3389/frsen.2024.1395442.
 
 """
 #!/usr/bin/env python
 # Python library imports
+
 # Third party imports
 import matplotlib.colors as colors
 import matplotlib.patches as mpatches
@@ -20,13 +22,14 @@ import numpy as np
 from matplotlib.projections import PolarAxes
 from mpl_toolkits.axisartist.floating_axes import FloatingSubplot, GridHelperCurveLinear
 from mpl_toolkits.axisartist.grid_finder import DictFormatter, FixedLocator, MaxNLocator
+
 # Local imports
 
 
 class TripleCollocationDiagram:
     """
     Triple collocation diagram.
-    
+
     Plot standard deviation and correlation of three datasets
     in a single-quadrant polar plot, with r=std and theta=arccos(correlation).
     """
@@ -41,7 +44,6 @@ class TripleCollocationDiagram:
         sgrid_locator=None,
         normal=False,
         extend=False,
-        horizon='sigstd',
     ):
         """Set up Triple Collocation diagram axes, i.e. single quadrant polar
         plot, using `mpl_toolkits.axisartist.floating_axes`.
@@ -67,8 +69,6 @@ class TripleCollocationDiagram:
         extend : bool, default: False
             If True, extend diagram to negative correlations.
             Legacy kwarg, currently not in use.
-        horizon : str, default: 'sigstd'
-            Specify the variable on the horizon. 
         """
         # Error standard deviation
         if isinstance(errstd, list):
@@ -88,11 +88,6 @@ class TripleCollocationDiagram:
         self.sigstd = [
             np.sqrt(b**2-a**2) for a, b in zip(self.errstd, self.totstd)
         ]
-        # Specify horizon variable
-        if horizon.lower() in {'sigstd','totstd'}:
-            self.horizon = horizon
-        else:
-            raise ValueError(f'Horizon variable must be sigstd/totstd.')
         # Default radial axis range
         if srange is None:
             if normal:
@@ -171,19 +166,11 @@ class TripleCollocationDiagram:
         """
         # (theta, radius)
         if normal:
-            if self.horizon == 'sigstd':
-                azimuth = np.arccos(self.corrcoef[ind])
-                radius = self.totstd[ind]/self.errstd[ind]      
-            elif self.horizon == 'totstd':
-                azimuth = np.arccos(1)
-                radius = [1]
+            azimuth = np.arccos(self.corrcoef[ind])
+            radius = self.totstd[ind]/self.errstd[ind]
         else:
-            if self.horizon == 'sigstd':
-                azimuth = np.arccos(self.corrcoef[ind])
-                radius = self.totstd[ind]      
-            elif self.horizon == 'totstd':
-                azimuth = np.arccos(1)
-                radius = self.totstd[ind]      
+            azimuth = np.arccos(self.corrcoef[ind])
+            radius = self.totstd[ind]
 
         (l,) = self.ax.plot(
             azimuth, radius, label=label, clip_on=False, *args, **kwargs
@@ -200,19 +187,11 @@ class TripleCollocationDiagram:
         """
         # (theta, radius)
         if normal:
-            if self.horizon == 'sigstd':
-                azimuth = np.arccos(0)
-                radius = [1]     
-            elif self.horizon == 'totstd':
-                azimuth = np.arccos(self.corrcoef[ind])
-                radius = self.corrcoef[ind]
+            azimuth = np.arccos(0)
+            radius = [1]
         else:
-            if self.horizon == 'sigstd':
-                azimuth = np.arccos(0)
-                radius = self.errstd[ind]      
-            elif self.horizon == 'totstd':
-                azimuth = np.arccos(self.corrcoef[ind])
-                radius = self.sigstd[ind]      
+            azimuth = np.arccos(0)
+            radius = self.errstd[ind]
 
         (l,) = self.ax.plot(
             azimuth, radius, label=label, clip_on=False, *args, **kwargs,
@@ -229,19 +208,11 @@ class TripleCollocationDiagram:
         """
         # (theta, radius)
         if normal:
-            if self.horizon == 'sigstd':
-                azimuth = np.arccos(1)
-                radius = self.sigstd[ind]/self.errstd[ind]
-            elif self.horizon == 'totstd':
-                azimuth = np.arccos(self.corrcoef[ind])
-                radius = self.corrcoef[ind]
+            azimuth = np.arccos(1)
+            radius = self.sigstd[ind]/self.errstd[ind]
         else:
-            if self.horizon == 'sigstd':
-                azimuth = np.arccos(1)
-                radius = self.sigstd[ind]      
-            elif self.horizon == 'totstd':
-                azimuth = np.arccos(self.corrcoef[ind])
-                radius = self.sigstd[ind]      
+            azimuth = np.arccos(1)
+            radius = self.sigstd[ind]
 
         (l,) = self.ax.plot(
             azimuth, radius, label=label, clip_on=False, *args, **kwargs,
@@ -269,12 +240,9 @@ class TripleCollocationDiagram:
         if levels == 1:
             totstd = self.totstd[ind]
             if normal:
-                if self.horizon == 'sigstd':
-                    totstd = self.totstd[ind]/self.errstd[ind]             
-                elif self.horizon == 'totstd':
-                    totstd = 1               
+                totstd = self.totstd[ind]/self.errstd[ind]
             else:
-                totstd = self.totstd[ind]                
+                totstd = self.totstd[ind]
             contours = self.ax.contour(ts, rs, rs, [totstd], **kwargs)
         else:
             contours = self.ax.contour(ts, rs, rs, levels, **kwargs)
@@ -303,21 +271,11 @@ class TripleCollocationDiagram:
         rs, ts = np.meshgrid(
             np.linspace(self.smin, self.smax), np.linspace(0, self.tmax)
         )
-        if self.horizon == 'sigstd':
-            if levels == 1:
-                errstd = self.errstd[ind]
-                contours = self.ax.contour(ts, rs, rs, [errstd], **kwargs)
-            else:
-                contours = self.ax.contour(ts, rs, rs, levels, **kwargs)
-        elif self.horizon == 'totstd':
-            rms = np.sqrt(
-                self.totstd[ind] ** 2 + rs**2 - 2 * self.totstd[ind] * rs * np.cos(ts)
-            )
-            if levels == 1:
-                errstd = self.errstd[ind]
-                contours = self.ax.contour(ts, rs, rms, [errstd], **kwargs)
-            else:
-                contours = self.ax.contour(ts, rs, rms, levels, **kwargs)
+        if levels == 1:
+            errstd = self.errstd[ind]
+            contours = self.ax.contour(ts, rs, rs, [errstd], **kwargs)
+        else:
+            contours = self.ax.contour(ts, rs, rs, levels, **kwargs)
         return contours
 
     def add_totstd_side(self, ind, **kwargs):
@@ -325,13 +283,12 @@ class TripleCollocationDiagram:
         *kwargs* is directly propagated to the
         `Figure.plot` command.
         """
-        rs, ts = np.meshgrid(
-            np.linspace(self.smin, self.smax), np.linspace(0, self.tmax)
+        # rs, ts = np.meshgrid(
+        #     np.linspace(self.smin, self.smax), np.linspace(0, self.tmax)
+        # )
+        rline = self.ax.plot(
+            [0,np.arccos(self.corrcoef[ind])],[0,self.totstd[ind]], **kwargs
         )
-        if self.horizon == 'sigstd':
-            rline = self.ax.plot(
-                [0,np.arccos(self.corrcoef[ind])],[0,self.totstd[ind]], **kwargs
-            )
         return rline
 
     def add_skillscore_contours(self, levels=None, **kwargs):
@@ -366,7 +323,7 @@ def test1():
     """Plot a base Triple Collocation diagram."""
     # Define subplots
     rects = [111]
-    # System, error, and signal std
+    # Error std and correlation coefficient
     errstds = {rects[0]: [0.06373, 0.02726, 0.05112]}
     corrcoefs = {rects[0]: [0.7963, 0.9256, 0.8577]}
     # Plot specifics
@@ -407,17 +364,16 @@ def test1():
             rlocs=rlocs,
             srange=sranges[rect],
             sgrid_locator=gl2,
-            horizon='sigstd',
         )
         for i, _ in enumerate(dia.totstd):
             # Add total standard deviation point
             dia.add_totstd(
-                i, 
-                marker="o", 
-                ls="", 
+                i,
+                marker="o",
+                ls="",
                 mfc="none",
-                # mfc=cmaps[i], 
-                mec=cmaps[i], 
+                # mfc=cmaps[i],
+                mec=cmaps[i],
                 ms=6)
             # Add error standard deviation point
             dia.add_errstd(
@@ -425,19 +381,19 @@ def test1():
                 marker="o",
                 ls="",
                 mfc="none",
-                # mfc=cmaps[i], 
-                mec=cmaps[i], 
+                # mfc=cmaps[i],
+                mec=cmaps[i],
                 ms=6,
                 label=labels[rect][i],
             )
             # Add signal standard deviation point
             dia.add_sigstd(
-                i, 
-                marker="o", 
+                i,
+                marker="o",
                 ls="",
                 mfc="none",
-                # mfc=cmaps[i], 
-                mec=cmaps[i], 
+                # mfc=cmaps[i],
+                mec=cmaps[i],
                 ms=6)
             # Add line from origin to total standard deviation
             dia.add_totstd_side(
@@ -482,14 +438,14 @@ def test1():
     # Default path is to your home directory.
     outfile = "fig_tcd1.eps"
     plt.savefig(outfile)
-    plt.show()
-    return dia
+    # plt.show()
+    # return dia
 
 def test2():
     """Plot a base Triple Collocation diagram."""
     # Define subplots
     rects = [111]
-    # System, error, and signal std
+    # Error std and correlation coefficient
     errstds = {rects[0]: [0.06373, 0.02726, 0.05112, 0.0441, 0.02871, 0.04979]}
     corrcoefs = {rects[0]: [0.7963, 0.9256, 0.8577, 0.8356, 0.9015, 0.8670]}
     # Plot specifics
@@ -529,17 +485,16 @@ def test2():
             rlocs=rlocs,
             srange=sranges[rect],
             sgrid_locator=gl2,
-            horizon='sigstd',
         )
         for i, _ in enumerate(dia.totstd):
             # Add total standard deviation point
             dia.add_totstd(
-                i, 
-                marker=markers[i], 
-                ls="", 
+                i,
+                marker=markers[i],
+                ls="",
                 mfc="none",
-                # mfc=cmaps[i], 
-                mec=cmaps[i], 
+                # mfc=cmaps[i],
+                mec=cmaps[i],
                 ms=6)
             # Add error standard deviation point
             dia.add_errstd(
@@ -547,19 +502,19 @@ def test2():
                 marker=markers[i],
                 ls="",
                 mfc="none",
-                # mfc=cmaps[i], 
-                mec=cmaps[i], 
+                # mfc=cmaps[i],
+                mec=cmaps[i],
                 ms=6,
                 label=labels[rect][i],
             )
             # Add signal standard deviation point
             dia.add_sigstd(
-                i, 
-                marker=markers[i], 
+                i,
+                marker=markers[i],
                 ls="",
                 mfc="none",
-                # mfc=cmaps[i], 
-                mec=cmaps[i], 
+                # mfc=cmaps[i],
+                mec=cmaps[i],
                 ms=6)
 
         # Tricky: ax is the polar ax (used for plots), _ax is the
@@ -609,14 +564,14 @@ def test2():
     # Default path is to your home directory.
     outfile = "fig_tcd2.eps"
     plt.savefig(outfile)
-    plt.show()
-    return dia
+    # plt.show()
+    # return dia
 
 def test3():
     """Plot a base Triple Collocation diagram."""
     # Define subplots
     rects = [111]
-    # System, error, and signal std
+    # Error std and correlation coefficient
     errstds = {rects[0]: [0.06373, 0.02726, 0.05112, 0.0441, 0.02871, 0.04979]}
     corrcoefs = {rects[0]: [0.7963, 0.9256, 0.8577, 0.8356, 0.9015, 0.8670]}
     # Plot specifics
@@ -656,17 +611,16 @@ def test3():
             rlocs=rlocs,
             srange=sranges[rect],
             sgrid_locator=gl2,
-            horizon='sigstd',
         )
         for i, _ in enumerate(dia.totstd):
             # Add total standard deviation point
             dia.add_totstd(
-                i, 
-                marker=markers[i], 
-                ls="", 
+                i,
+                marker=markers[i],
+                ls="",
                 mfc="none",
-                # mfc=cmaps[i], 
-                mec=cmaps[i], 
+                # mfc=cmaps[i],
+                mec=cmaps[i],
                 ms=6,
                 label=labels[rect][i],
                 )
@@ -729,13 +683,10 @@ def test3():
     # Default path is to your home directory.
     outfile = "fig_tcd3.eps"
     plt.savefig(outfile)
-    plt.show()
-    return dia
-
+    # plt.show()
+    # return dia
 
 if __name__ == '__main__':
-
     test1()
     test2()
     test3()
-
